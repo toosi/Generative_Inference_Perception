@@ -126,6 +126,11 @@ def load_models(args):
         ds = Vggface2forRobustness(num_classes=num_classes,
                                     n_train_per_class=n_train_per_class,
                                     n_val_per_class=n_val_per_class)
+        
+    elif args.dataset == 'Places365':
+        from robustness.datasets import Places365
+        ds = Places365(os.path.join(path_prefix_data ,'Places365'))
+        num_classes = 365
             
     else:
         raise ValueError("The dataset is not supported")

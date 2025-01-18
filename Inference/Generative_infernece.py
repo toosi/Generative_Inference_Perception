@@ -34,6 +34,11 @@ class InferStep:
         diff = x - self.orig_image
         diff = torch.clamp(diff, -self.eps, self.eps)
         return torch.clamp(self.orig_image + diff, 0, 1)
+    
+    def modulated_project(self, x, grad_modulation): 
+        diff = x - self.orig_image
+        diff = torch.clamp(diff, -self.eps, self.eps)
+        return torch.clamp(self.orig_image*(1-grad_modulation) + diff*grad_modulation, 0, 1)
 
     def step(self, x, grad):
         l = len(x.shape) - 1
@@ -52,6 +57,32 @@ def extract_middle_layers(model, module_name):
         else:
             raise ValueError(f"Module {module_name} not found in model: {model}")
         return torch.nn.Sequential(OrderedDict(modules))
+
+
+from scipy.ndimage import gaussian_filter
+
+def generate_perlin_noise(image_tensor, scale=3):
+    height, width = image_tensor.shape[-2], image_tensor.shape[-1]
+    
+    # Generate random grid of control points
+    grid_size = (height // scale, width // scale)
+    control_points = np.random.rand(*grid_size).astype(np.float32)
+    
+    # Resize to match image dimensions using bilinear interpolation
+    noise = torch.from_numpy(control_points)
+    noise = torch.nn.functional.interpolate(
+        noise.unsqueeze(0).unsqueeze(0),  # Add batch and channel dimensions
+        size=(height, width),
+        mode='bilinear',
+        align_corners=True
+    ).squeeze(0).squeeze(0)  # Remove batch and channel dimensions
+    
+    # Normalize to range [-1, 1]
+    noise = (noise - noise.min()) / (noise.max() - noise.min()) * 2 - 1
+    noise = noise.to(image_tensor.device)
+    noise = torch.clamp(noise, 0.4, 0.6)
+    return noise
+
 
 
 def calculate_contrast(image):
@@ -145,8 +176,14 @@ def generative_inference(model_config, image, inference_config):
             transforms.CenterCrop(224),
             transforms.ToTensor(),
         ])
-    
-    image_tensor = transform(image).unsqueeze(0).cuda()
+        
+    if loss_infer == 'GradModulation':
+        grad_modulation = inference_config['misc_info']['grad_modulation']
+        image_tensor = transform(image).unsqueeze(0).cuda()
+        perlin_noise = generate_perlin_noise(image_tensor)
+        image_tensor = image_tensor * (1-grad_modulation) + perlin_noise * grad_modulation
+    else:
+        image_tensor = transform(image).unsqueeze(0).cuda()
     image_tensor.requires_grad = True
 
     # Prepare model
@@ -162,8 +199,11 @@ def generative_inference(model_config, image, inference_config):
     
     
     # noisy image for Reverse Diffusion
-    if loss_infer == 'ReverseDiffusion':
+    if loss_infer == 'ReverseDiffusion' or loss_infer == 'GradModulation':
         added_noise = initial_inference_noise_ratio * torch.randn_like(image_tensor).cuda()
+        # if loss_infer == 'GradModulation':
+        #     grad_modulation = inference_config['misc_info']['grad_modulation']
+        #     added_noise = added_noise * grad_modulation
         noisy_image_tensor = image_tensor + added_noise
         noisy_features = new_model(noisy_image_tensor)
         
@@ -209,10 +249,22 @@ def generative_inference(model_config, image, inference_config):
                 loss = torch.nn.functional.mse_loss(features, noisy_features)
                 grad = torch.autograd.grad(loss, image_tensor)[0]
                 adjusted_grad = inferstep.step(image_tensor, grad)
+                
             elif loss_infer == 'IncreaseConfidence':
                 loss = calculate_loss(features, least_confident_classes[0], loss_function)
                 grad = torch.autograd.grad(loss, image_tensor)[0]
                 adjusted_grad = inferstep.step(image_tensor, grad)
+                
+            elif loss_infer == 'GradModulation':
+                grad_modulation = inference_config['misc_info']['grad_modulation']
+                # assert loss_function == 'MSE', "Grad Modulation loss function must be MSE"
+                # loss = torch.nn.functional.mse_loss(features, noisy_features)
+                loss = calculate_loss(features, least_confident_classes[0], loss_function)
+                grad = torch.autograd.grad(loss, image_tensor)[0]
+                adjusted_grad = inferstep.step(image_tensor, grad)
+                # adjusted_grad = adjusted_grad * grad_modulation
+                
+                
             elif loss_infer == 'CompositionalFusion':
                 accumulated_grad_pos = 0
                 accumulated_grad_neg = 0
@@ -254,9 +306,16 @@ def generative_inference(model_config, image, inference_config):
 
             
             
-            
+        
             diffusion_noise = diffusion_noise_ratio * torch.randn_like(image_tensor).cuda()
-            image_tensor = inferstep.project(image_tensor.clone() + adjusted_grad + diffusion_noise)
+            if loss_infer == 'GradModulation':
+                # image_tensor = inferstep.modulated_project(image_tensor.clone() + adjusted_grad + diffusion_noise*grad_modulation, grad_modulation)
+                image_tensor = inferstep.project(image_tensor.clone() + adjusted_grad + diffusion_noise*grad_modulation)
+
+            else:
+                image_tensor = inferstep.project(image_tensor.clone() + adjusted_grad + diffusion_noise)    
+            
+        
 
         if inference_normalization=='on' and itr == 0:
             denormalized_image_tensor = image_tensor.squeeze(0) * norm_std.view(1, -1, 1, 1) + norm_mean.view(1, -1, 1, 1)
