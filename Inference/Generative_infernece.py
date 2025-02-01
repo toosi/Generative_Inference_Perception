@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from collections import OrderedDict
 import torch.nn as nn
-
+from torch.nn import functional as F
 import requests
 
 # URL for the ImageNet labels
@@ -181,8 +181,8 @@ def generative_inference(model_config, image, inference_config):
         grad_modulation = inference_config['misc_info']['grad_modulation']
         image_tensor = transform(image).unsqueeze(0).cuda()
         perlin_noise = generate_perlin_noise(image_tensor)
-        image_tensor = image_tensor * (1-grad_modulation) + perlin_noise * grad_modulation
-        # image_tensor = image_tensor * (1-grad_modulation) + grad_modulation * torch.randn_like(image_tensor)
+        # image_tensor = image_tensor * (1-grad_modulation) + perlin_noise * grad_modulation
+        image_tensor = image_tensor * (1-grad_modulation) + grad_modulation * torch.randn_like(image_tensor)
 
     else:
         image_tensor = transform(image).unsqueeze(0).cuda()
@@ -200,14 +200,15 @@ def generative_inference(model_config, image, inference_config):
     if loss_infer == 'IncreaseConfidence':
         _, least_confident_classes = torch.topk(probs_orig, k=int(n_classes/10), largest=False)
     elif loss_infer == 'GradModulation':
-        image_sec1 = image_tensor[0, :, 0:112, :].clone()
-        image_sec2 = image_tensor[0, :, 112:, 0:112].clone()
-        image_sec3 = image_tensor[0, :, 0:112, 0:112].clone()
-        image_sec4 = image_tensor[0, :, 0:112, 112:].clone()
+        image_sec1 = image_tensor[:, :, 0:112, :].clone()
+        image_sec2 = image_tensor[:, :, 112:, 0:112].clone()
+        image_sec3 = image_tensor[:, :, 0:112, 0:112].clone()
+        image_sec4 = image_tensor[:, :, 0:112, 112:].clone()
         
         image_secs = [image_sec1, image_sec2, image_sec3, image_sec4]
         probs_sec_list = []
         for img in image_secs:
+            img = F.interpolate(img, size=(224, 224), mode='bilinear', align_corners=True)
             output_sec = model(img)
             probs_sec = torch.nn.functional.softmax(output_sec, dim=1).squeeze(-1).squeeze(-1)
             probs_sec_list.append(probs_sec)
