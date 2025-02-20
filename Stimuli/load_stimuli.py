@@ -82,7 +82,7 @@ class ImageLoader:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010]),  # CIFAR-10 normalization
             ])
-        elif model_dataset in ['imagenet', 'imagenetvggface2']:
+        elif model_dataset in ['imagenet', 'imagenetvggface2', 'Places365']:
             self.transform = transforms.Compose([
                 transforms.Resize(224),
                 transforms.ToTensor(),
@@ -251,7 +251,9 @@ class ImageLoader:
         elif image_name == 'NeonCircles':
             image_original = Image.open(os.path.join(self.Imagedir_path, "Neon_Color_Circle.jpg")).convert('RGB')
             cmap = 'gray'
-            
+        elif image_name == 'NeonColorSaeedi':
+            image_original = Image.open(os.path.join(self.Imagedir_path, "NeonColorSaeedi.jpg")).convert('RGB')
+            cmap = 'gray'
         elif image_name == 'NeonCirclesCocenter':
             image_original = Image.open(os.path.join(self.Imagedir_path, "Neon_colour_spreading_illusion_no_caption.png")).convert('RGB')
             cmap = 'gray'
@@ -272,6 +274,14 @@ class ImageLoader:
             
         elif image_name == 'EgyptianMauTrain1':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'imagenet_train', "Egyptian Mau_train1.png")).convert('RGB')
+            cmap = 'gray'
+            
+        elif image_name == 'RandomizedPhaseoval':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'RandomizedPhaseOval.png')).convert('RGB')
+            cmap = 'gray'
+        
+        elif image_name == 'RandomizedPhaseovalGray':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'RandomizedPhaseOvalGray.png')).convert('RGB')
             cmap = 'gray'
         else:
             raise ValueError(f"Unsupported image name: {image_name}")
