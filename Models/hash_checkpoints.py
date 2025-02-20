@@ -67,10 +67,14 @@ dict_hash_MNIST = {
 # advrobust_L2_eps_1.00 1177ea9d-22d6-4181-9bb2-eb0d22ff8f59 107
 
 }
-dict_hash_vggface2 = {
+dict_hash_resent50_vggface2 = {
                       'advrobust_L2_eps_0.50': '3140bf7b-21a2-41dd-9ace-9407fcfc2137',
                       'advrobust_L2_eps_1.00': '0bad943b-4373-4bba-998a-95493dd2bf51',
                       'advrobust_L2_eps_3.00': 'c91917b7-660b-4c04-97f4-993be74e6eb8',}
+
+dict_hash_vgg16_vggface2 = {
+
+                      'advrobust_L2_eps_3.00': '1e9fce5f-b1c9-4f19-b559-022bce001864',} #190 checkpoints even numbers 
 
 
 dict_hash_resent50_imagenet = { 'advrobust_L2_eps_3.00': 'c27e4781-e806-451d-af40-a2e30d88ca6d',
@@ -118,7 +122,9 @@ def get_dict_hash(dataset, model_arch):
         return dict_hash_CIFAR10
     elif dataset == 'MNIST':
         return dict_hash_MNIST
-    elif dataset == 'vggface2':
-        return dict_hash_vggface2
+    elif dataset == 'vggface2' and model_arch == 'resnet50':
+        return dict_hash_resent50_vggface2
+    elif dataset == 'vggface2' and model_arch == 'vgg16':
+        return dict_hash_vgg16_vggface2
     else:
         raise ValueError(f'No hash dict for {dataset} and {model_arch}')

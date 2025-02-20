@@ -32,6 +32,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch 
 import torch.nn as nn
+from torchvision import models as torchvision_models
 
 dict_chkpts_urls = {'advrobust_resnet50': 'http://alisec-competition.oss-cn-shanghai.aliyuncs.com/xiaofeng/easy_robust/benchmark_models/ours/examples/adversarial_training/model_best.pth.tar',
                     'advrobust_vgg16':'http://alisec-competition.oss-cn-shanghai.aliyuncs.com/xiaofeng/imagenet_pretrained_models/advtrain_models/advtrain_vgg16_ep4.pth',
@@ -95,6 +96,14 @@ import sys
 sys.path.append(os.path.join(path_prefix, 'Codes/Perceptually_Aligned_Gradients'))
 from Models import hash_checkpoints
 
+import torch
+from typing import Dict, Union
+from collections import OrderedDict
+
+other_CNN_models = ['resnet18', 'densenet','mnasnet', 'mobilenet-v3', 'wide-resnet50-2', 'vgg16-bn','shufflenet','resnext50-32x4d']
+
+
+
 
 def load_models(args):
     if isinstance(args, dict):
@@ -105,7 +114,11 @@ def load_models(args):
         pass
     # if args.dataset != 'imagenet':
     #     print("add imagenet models to the hash_checkpoints.py")
-    dict_hash = hash_checkpoints.get_dict_hash(args.dataset, args.model_arch)
+    # if args.model_arch == 'resnet50':
+    if args.model_arch not in other_CNN_models:
+        dict_hash = hash_checkpoints.get_dict_hash(args.dataset, args.model_arch)
+    else:
+        dict_hash = {}
     
     ## Hard-coded dataset, architecture, batch size, workers
     from robustness.datasets import ImageNet
@@ -131,6 +144,14 @@ def load_models(args):
         from robustness.datasets import Places365
         ds = Places365(os.path.join(path_prefix_data ,'Places365'))
         num_classes = 365
+        
+    elif args.dataset == 'imagenetvggface2':
+        print("Loading ds=imagenet for imagenetvggface2")
+        from robustness.datasets import ImageNet
+        ds = ImageNet(os.path.join(path_prefix_data ,'imagenet'))
+        num_classes = 1000
+        
+        
             
     else:
         raise ValueError("The dataset is not supported")
@@ -148,10 +169,10 @@ def load_models(args):
         path_dir = os.path.join(path_prefix, 'Codes/Perceptually_Aligned_Gradients') #os.path.dirname(os.path.realpath(__file__))
         path_checkpoints = os.path.join(path_dir, 'Training/TrainedModels')
 
-        if args.model_arch == 'resnet50': 
+        if args.dataset == 'imagenet': 
             
             
-            if (args.dataset == 'imagenet') and (args.epoch_chkpnt == 'full'):
+            if (args.model_arch == 'resnet50') and (args.epoch_chkpnt == 'full'):
                 if args.model_training == 'advrobust_L2_eps_3.00':
                     args.eps = float(args.model_training.split('_')[-1])
 
@@ -185,7 +206,7 @@ def load_models(args):
                     print("loading model from: ", load_path)
                     
                     
-            elif (args.dataset == 'imagenet') and (args.epoch_chkpnt != 'full'):
+            elif (args.model_arch == 'resnet50') and (args.epoch_chkpnt != 'full'):
                 
                 args.eps = float(args.model_training.split('_')[-1])
                 load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
@@ -197,59 +218,166 @@ def load_models(args):
                                                             resume_path=load_path,)        
                 print(f"****** Loaded model from {load_path}")
                 
-            elif (args.dataset == 'Places365') and (args.epoch_chkpnt != 'full'):
-                print(f"Loading model from Places365")
-                args.eps = float(args.model_training.split('_')[-1])
-                assert (int(args.epoch_chkpnt) < 103) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 103 and even"
-                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
-                model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=load_path,)        
-                print(f"****** Loading model from {load_path}")
+            elif args.model_arch in other_CNN_models:
+                arch_name_in_modelzoo = args.model_arch.replace('-','_')
+                assert args.epoch_chkpnt == 'full', "The epoch number should be full"
+                L_attack = args.model_training.split('_')[1].lower() # format advrobust_L2_eps_3.00
+                eps_attack = args.model_training.split('_')[-1]
+                model, _ = model_utils.make_and_restore_model(arch=arch_name_in_modelzoo, dataset=ds,
+                                                pytorch_pretrained=False,)
+                load_path = path_checkpoints+ f'/madry_robust/imagenet/robust-imagenet-models/checkpoints/{arch_name_in_modelzoo}_{L_attack}_eps{eps_attack}.ckpt'
+                checkpoint = torch.load(load_path)
+                state_dict = checkpoint['model']
+                # remove module
+                new_state_dict = {k.replace('module.',''): v for k, v in state_dict.items()}
+                new_state_dict = {k.replace('model.model.','model.'): v for k, v in new_state_dict.items()}
+                model.load_state_dict(new_state_dict)
                 
-            elif (args.dataset == 'imagenetvggface2') and (args.epoch_chkpnt != 'full'):
-                print(f"Loading model from imagenetvggface2")
-                args.eps = float(args.model_training.split('_')[-1])
-                load_dir = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}'
-                files = os.listdir(load_dir)
-                num_checkpoints = len([f for f in files if f.endswith('_checkpoint.pt')])*2
-                
-                assert (int(args.epoch_chkpnt) < num_checkpoints) and int(args.epoch_chkpnt)%2==0, f"The epoch number should be less than {num_checkpoints} and even"
-                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
-                model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=load_path,)        
-                print(f"****** Loading model from {load_path}")
-                
-            elif (args.dataset == 'vggface2') and (args.epoch_chkpnt != 'full'):
-                
-                args.eps = float(args.model_training.split('_')[-1])
-                if args.epoch_chkpnt == 'full':
-                    load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/checkpoint.pt.best'
-                else:
-                    assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
+        elif (args.dataset == 'Places365') and (args.epoch_chkpnt != 'full'):
+            print(f"Loading model from Places365")
+            args.eps = float(args.model_training.split('_')[-1])
+            assert (int(args.epoch_chkpnt) < 103) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 103 and even"
+            load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+            model, _ = model_utils.make_and_restore_model(arch=args.model_arch, dataset=ds,
+                                                        resume_path=load_path,)        
+            print(f"****** Loading model from {load_path}")
+            
+        # elif (args.dataset == 'imagenetvggface2') and (args.epoch_chkpnt != 'full'):
+        #     print(f"Loading model from imagenetvggface2")
+        #     args.eps = float(args.model_training.split('_')[-1])
+        #     load_dir = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}'
+        #     files = os.listdir(load_dir)
+        #     num_checkpoints = len([f for f in files if f.endswith('_checkpoint.pt')])*2
+            
+        #     assert (int(args.epoch_chkpnt) < num_checkpoints) and int(args.epoch_chkpnt)%2==0, f"The epoch number should be less than {num_checkpoints} and even"
+        #     load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+        #     model, _ = model_utils.make_and_restore_model(arch=args.model_arch, dataset=ds,
+        #                                                 resume_path=load_path,)        
+        #     print(f"****** Loading model from {load_path}")
+            
+        elif (args.dataset == 'vggface2'):
+            
+            args.eps = float(args.model_training.split('_')[-1])
+            if args.epoch_chkpnt == 'full':
+                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/checkpoint.pt.best'
+            else:
+                assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
 
-                    load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
 
-   
-                model_arch = timm.create_model('resnet50', num_classes=500, pretrained=False)
-                #     # wrap the model in a model wrapper with model name
-                #     model_arch = nn.DataParallel(model_arch)
-                    
-                #     checkpoint = torch.load(load_path)
-                #     checkpoint_model = checkpoint['model']
-                #     # drop model. from the begining of the key
-                #     checkpoint_model = {k.replace('module','model'): v for k, v in checkpoint_model.items() if 'model.model' in k}
-                    
-                #     checkpoint['model'] = checkpoint_model
-                #     torch.save(checkpoint, load_path)
-                    
+            if args.model_arch == 'vgg16':
+                model_arch = torchvision_models.vgg16(pretrained=False)
+                model_arch.classifier[-1] = torch.nn.Linear(in_features=model_arch.classifier[-1].in_features, out_features=100) 
+            else:
+            
+
+                 model_arch = timm.create_model(args.model_arch, num_classes=500, pretrained=False)
+            #     # wrap the model in a model wrapper with model name
+            #     model_arch = nn.DataParallel(model_arch)
+                
+            #     checkpoint = torch.load(load_path)
+            #     checkpoint_model = checkpoint['model']
+            #     # drop model. from the begining of the key
+            #     checkpoint_model = {k.replace('module','model'): v for k, v in checkpoint_model.items() if 'model.model' in k}
+                
+            #     checkpoint['model'] = checkpoint_model
+            #     torch.save(checkpoint, load_path)
+            
+            # state_dict = torch.load(load_path)
+            # print(state_dict.keys())
+            print(f"****** Loading model from {load_path} after adjusting the model architecture")
+            try: 
                 model = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
                                                             resume_path=load_path,add_custom_forward=True,)
-                print(f"****** Loading model from {load_path} after adjusting the model architecture")
+                
                 print(len(model))
                 print(model[0]) 
                 model = model[0].model
-                   
                 
+            except:
+                # wrap the model in a model wrapper with model name
+                # model_arch = nn.DataParallel(model_arch)
+                
+                checkpoint = torch.load(load_path)
+                checkpoint_model = checkpoint['model']
+                print(checkpoint_model.keys())
+                # drop model. from the begining of the key
+                checkpoint_model = {k.replace('model','model.model'): v for k, v in checkpoint_model.items()}
+                
+                print(checkpoint_model.keys())
+                checkpoint['model'] = checkpoint_model
+                torch.save(checkpoint, 'tmp.pth')
+            
+                model = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
+                                                            resume_path='tmp.pth',add_custom_forward=True,)
+                
+                print(len(model))
+                print(model[0]) 
+                model = model[0].model
+                
+        
+        elif (args.dataset == 'imagenetvggface2'):
+            print(f"Loading model from imagenetvggface2")
+            args.eps = float(args.model_training.split('_')[-1])
+            if args.epoch_chkpnt == 'full':
+                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/checkpoint.pt.best'
+            else:
+                assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
+
+                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+
+            if args.model_arch == 'vgg16':
+                model_arch = torchvision_models.vgg16(pretrained=False)
+                model_arch.classifier[-1] = torch.nn.Linear(in_features=model_arch.classifier[-1].in_features, out_features=1001) 
+            else:
+            
+
+                 model_arch = timm.create_model(args.model_arch, num_classes=1001, pretrained=False)
+            #     # wrap the model in a model wrapper with model name
+            #     model_arch = nn.DataParallel(model_arch)
+                
+            #     checkpoint = torch.load(load_path)
+            #     checkpoint_model = checkpoint['model']
+            #     # drop model. from the begining of the key
+            #     checkpoint_model = {k.replace('module','model'): v for k, v in checkpoint_model.items() if 'model.model' in k}
+                
+            #     checkpoint['model'] = checkpoint_model
+            #     torch.save(checkpoint, load_path)
+            
+            # state_dict = torch.load(load_path)
+            # print(state_dict.keys())
+            print(f"****** Loading model from {load_path} after adjusting the model architecture")
+            try: 
+                model = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
+                                                            resume_path=load_path,add_custom_forward=True,)
+                
+                print(len(model))
+                print(model[0]) 
+                model = model[0].model
+                
+            except:
+                # wrap the model in a model wrapper with model name
+                # model_arch = nn.DataParallel(model_arch)
+                
+                checkpoint = torch.load(load_path)
+                checkpoint_model = checkpoint['model']
+                print(checkpoint_model.keys())
+                # drop model. from the begining of the key
+                checkpoint_model = {k.replace('model','model.model'): v for k, v in checkpoint_model.items()}
+                
+                print(checkpoint_model.keys())
+                checkpoint['model'] = checkpoint_model
+                torch.save(checkpoint, 'tmp.pth')
+            
+                model = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
+                                                            resume_path='tmp.pth',add_custom_forward=True,)
+                
+                print(len(model))
+                print(model[0]) 
+                model = model[0].model
+                
+            
+        
         else:
             raise ValueError("The model architecture is not supported")
 
@@ -264,7 +392,7 @@ def load_models(args):
 
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':#
     # put args in a dictionary
     import argparse
     import timm
