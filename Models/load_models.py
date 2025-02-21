@@ -172,51 +172,64 @@ def load_models(args):
         if args.dataset == 'imagenet': 
             
             
-            if (args.model_arch == 'resnet50') and (args.epoch_chkpnt == 'full'):
-                if args.model_training == 'advrobust_L2_eps_3.00':
-                    args.eps = float(args.model_training.split('_')[-1])
+            if (args.model_arch == 'resnet50'): 
+            
+                if (args.epoch_chkpnt == 'madryfull'):
+                    if args.model_training == 'advrobust_L2_eps_3.00':
+                        args.eps = float(args.model_training.split('_')[-1])
 
-                    model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=path_checkpoints+ f'/madry_robust/imagenet/L2/imagenet_l2_3_0.pt',)
-                    load_path = path_checkpoints+ f'/madry_robust/imagenet/L2/imagenet_l2_3_0.pt'
-                    print("loading model from: ", load_path)
-                
-                elif args.model_training == 'advrobust_Linf_eps_4.00':
-                    args.eps = float(args.model_training.split('_')[-1])
+                        model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
+                                                                resume_path=path_checkpoints+ f'/madry_robust/imagenet/L2/imagenet_l2_3_0.pt',)
+                        load_path = path_checkpoints+ f'/madry_robust/imagenet/L2/imagenet_l2_3_0.pt'
+                        print("loading model from: ", load_path)
+                    
+                    elif args.model_training == 'advrobust_Linf_eps_4.00':
+                        args.eps = float(args.model_training.split('_')[-1])
 
-                    model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_4.pt',)
-                    load_path = path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_4.pt'
-                    print("loading model from: ", load_path)
-                    
-                elif args.model_training == 'advrobust_Linf_eps_8.00':
-                    args.eps = float(args.model_training.split('_')[-1])
+                        model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
+                                                                resume_path=path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_4.pt',)
+                        load_path = path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_4.pt'
+                        print("loading model from: ", load_path)
+                        
+                    elif args.model_training == 'advrobust_Linf_eps_8.00':
+                        args.eps = float(args.model_training.split('_')[-1])
 
-                    model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_8.pt',)
-                    load_path = path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_8.pt'
-                    print("loading model from: ", load_path)
-                    
-                elif 'gaussrobust' in  args.model_training :
-                    args.eps = float(args.model_training.split('_')[-1])
+                        model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
+                                                                resume_path=path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_8.pt',)
+                        load_path = path_checkpoints+ f'/madry_robust/imagenet/Linf/imagenet_linf_8.pt'
+                        print("loading model from: ", load_path)
+                        
+                    elif 'gaussrobust' in  args.model_training :
+                        args.eps = float(args.model_training.split('_')[-1])
 
+                        model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
+                                                                resume_path=path_checkpoints+ f'/random_smoothing_robust/imagenet/resnet50/noise_{args.eps:.2f}/checkpoint.pth.tar',)
+                        load_path = path_checkpoints+ f'/random_smoothing_robust/imagenet/resnet50/noise_{args.eps:.2f}/checkpoint.pth.tar'
+                        print("loading model from: ", load_path)
+                    
+                    
+                elif (args.epoch_chkpnt == 'full' or isinstance(args.epoch_chkpnt, int)):
+                    
+                    # args.eps = float(args.model_training.split('_')[-1])
+                    # load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+                    
+                    print(f"Loading model from imagenet")
+                    args.eps = float(args.model_training.split('_')[-1])
+                    if args.epoch_chkpnt == 'full':
+                        load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/checkpoint.pt.best'
+                    else:
+                        assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
+
+                        load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
+
+                    
+                    print(f"Loading model from {load_path}")
+                    if isinstance(args.epoch_chkpnt, int):
+                        assert int(args.epoch_chkpnt)%2==0, "The epoch number should be even"
+                    
                     model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=path_checkpoints+ f'/random_smoothing_robust/imagenet/resnet50/noise_{args.eps:.2f}/checkpoint.pth.tar',)
-                    load_path = path_checkpoints+ f'/random_smoothing_robust/imagenet/resnet50/noise_{args.eps:.2f}/checkpoint.pth.tar'
-                    print("loading model from: ", load_path)
-                    
-                    
-            elif (args.model_arch == 'resnet50') and (args.epoch_chkpnt != 'full'):
-                
-                args.eps = float(args.model_training.split('_')[-1])
-                load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
-                
-                print(f"Loading model from {load_path}")
-                assert int(args.epoch_chkpnt)%2==0, "The epoch number should be even"
-                
-                model, _ = model_utils.make_and_restore_model(arch='resnet50', dataset=ds,
-                                                            resume_path=load_path,)        
-                print(f"****** Loaded model from {load_path}")
+                                                                resume_path=load_path,)        
+                    print(f"****** Loaded model from {load_path}")
                 
             elif args.model_arch in other_CNN_models:
                 arch_name_in_modelzoo = args.model_arch.replace('-','_')
