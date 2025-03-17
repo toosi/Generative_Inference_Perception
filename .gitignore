@@ -239,6 +239,13 @@ tensorboard_logs/
 # Ignore specific image or plot files
 *.png
 *.jpg
+*.pdf
 
 # Ignore unnecessary HTML files
 *.html
+
+# Ignore large model files
+Models/imagenet/Linf/*.pt
+*.pth
+state_dict_tmp.pth
+tmp.pth

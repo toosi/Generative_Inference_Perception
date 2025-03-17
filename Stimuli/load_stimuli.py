@@ -238,6 +238,9 @@ class ImageLoader:
         elif image_name == 'FigureGroundUniform':
             image_original = Image.open(os.path.join(self.Imagedir_path, "FigureGroundNew_Uniform.png")).convert('RGB')
             cmap = 'gray'
+        elif image_name == 'FigureGroundCircle':
+            image_original = Image.open(os.path.join(self.Imagedir_path, "FigureGroundCircle.png")).convert('RGB')
+            cmap = 'gray'
         
         
         elif image_name == 'BorderOwenerShip1':

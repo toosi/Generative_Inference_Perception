@@ -46,17 +46,55 @@ class InferStep:
         scaled_grad = grad / (grad_norm + 1e-10)
         return scaled_grad * self.step_size
 
-def extract_middle_layers(model, module_name):
-    if module_name == 'all':
+# def extract_middle_layers(model, module_name):
+#     if module_name == 'all':
+#         return model
+#     else:
+#         modules = list(model.named_children())
+#         module_index = next((i for i, (name, _) in enumerate(modules) if name == module_name), None)
+#         if module_index is not None:
+#             modules = modules[:module_index+1]
+#         else:
+#             raise ValueError(f"Module {module_name} not found in model: {model}")
+#         return torch.nn.Sequential(OrderedDict(modules))
+
+
+from collections import OrderedDict
+import torch.nn as nn
+
+def extract_middle_layers(model, layer_index):
+    if isinstance(layer_index, str) and layer_index == 'all':
         return model
+        
+    if hasattr(model, 'blocks'):  # Check if it's a ViT
+        # Create a new sequential model with the ViT components up to specified block
+        components = OrderedDict([
+            ('patch_embed', model.patch_embed),
+            ('pos_drop', model.pos_drop)
+        ])
+        
+        # Add the desired number of transformer blocks
+        if isinstance(layer_index, int):
+            blocks = model.blocks[:layer_index+1]
+        else:
+            blocks = model.blocks
+            
+        components['blocks'] = nn.Sequential(*blocks)
+        
+        # Add norm layer
+        components['norm'] = model.norm
+        
+        return nn.Sequential(components)
     else:
+        # Original ResNet handling
         modules = list(model.named_children())
-        module_index = next((i for i, (name, _) in enumerate(modules) if name == module_name), None)
+        module_index = next((i for i, (name, _) in enumerate(modules) 
+                           if name == str(layer_index)), None)
         if module_index is not None:
             modules = modules[:module_index+1]
         else:
-            raise ValueError(f"Module {module_name} not found in model: {model}")
-        return torch.nn.Sequential(OrderedDict(modules))
+            raise ValueError(f"Module {layer_index} not found in model")
+        return nn.Sequential(OrderedDict(modules))
 
 
 from scipy.ndimage import gaussian_filter
@@ -183,6 +221,7 @@ def generative_inference(model_config, image, inference_config):
         perlin_noise = generate_perlin_noise(image_tensor)
         # image_tensor = image_tensor * (1-grad_modulation) + perlin_noise * grad_modulation
         image_tensor = image_tensor * (1-grad_modulation) + grad_modulation * torch.randn_like(image_tensor)
+        
 
     else:
         image_tensor = transform(image).unsqueeze(0).cuda()
@@ -252,7 +291,29 @@ def generative_inference(model_config, image, inference_config):
     
     for itr in range(n_itr):
         new_model.zero_grad()
-        features = new_model(image_tensor)
+        
+        
+        if inference_config['misc_info'].get('smooth_inference', False):
+            
+            # Compute the smoothed output instead of a single forward pass.
+            num_samples = inference_config['misc_info'].get('smooth_samples', 100)
+            batch_size_smooth = inference_config['misc_info'].get('smooth_batch_size', 1)
+            smooth_sigma = inference_config['misc_info'].get('smooth_sigma', 0.25)
+            all_feats = []
+            num_remaining = num_samples
+            while num_remaining > 0:
+                current_batch = min(batch_size_smooth, num_remaining)
+                batch = image_tensor.repeat(current_batch, 1, 1, 1)
+                noise = torch.randn_like(batch) * smooth_sigma
+                feat = new_model(batch + noise)
+                
+                all_feats.append(feat)
+                num_remaining -= current_batch
+            # Average the outputs to form the smoothed representation.
+            features = torch.mean(torch.cat(all_feats, dim=0), dim=0, keepdim=True)
+        else:
+            new_model.zero_grad()
+            features = new_model(image_tensor)
         
         if itr == 0:
             # dont add priors or diffusion noise to the first iteration
@@ -273,7 +334,9 @@ def generative_inference(model_config, image, inference_config):
                 grad = torch.autograd.grad(loss, image_tensor)[0]
                 adjusted_grad = inferstep.step(image_tensor, grad)
                 
-            elif loss_infer == 'GradModulation':
+                
+            # for resolving occlusions
+            elif loss_infer == 'GradModulation':  
                 grad_modulation = inference_config['misc_info']['grad_modulation']
                 # assert loss_function == 'MSE', "Grad Modulation loss function must be MSE"
                 # loss = torch.nn.functional.mse_loss(features, noisy_features)
