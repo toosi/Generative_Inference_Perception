@@ -286,7 +286,74 @@ class ImageLoader:
         elif image_name == 'RandomizedPhaseovalGray':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'RandomizedPhaseOvalGray.png')).convert('RGB')
             cmap = 'gray'
+            
+        elif image_name == 'ConnectedDots':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ConnectedDots.png')).convert('RGB')
+            cmap = 'gray'
+        elif image_name == 'UnconnectedDots':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'UnconnectedDots.png')).convert('RGB')
+            cmap = 'gray'
+            
+        elif image_name == 'Panda':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'panda.png')).convert('RGB')
+            cmap = 'gray'
+            
+        elif image_name == 'GoodGestaltA':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GoodGestaltA.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'GoodGestaltB':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GoodGestaltB.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'GoodGestaltC':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GoodGestaltC.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'GoodGestaltD':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GoodGestaltD.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ContinuityGestaltA':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ContinuityGestaltA.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ContinuityGestaltB':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ContinuityGestaltB.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ContinuityGestaltZoomOutA':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ContinuityGestaltZoomOutA.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ContinuityGestaltZoomOutB':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ContinuityGestaltZoomOutB.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ContinuityGestaltZoomOutD':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ContinuityGestaltZoomOutD.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'GroupingByColor':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GroupingByColorSimilarity.png')).convert('RGB')
+            cmap = 'Spectral'
+            
+        elif image_name == 'GroupingByContinuity':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'GroupingByContinuity.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ShadowEffect':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ShadowEffect.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'ShadowEffectBW':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'ShadowEffectBW.png')).convert('RGB')
+            cmap = 'gray'
+        elif image_name == 'ColorballsStrips':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'colorballs_stripes.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'BlockColorIllusion':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'BlockColorIllusion.jpg')).convert('RGB')
+            cmap = 'Spectral'
+            
+        elif image_name == 'EhrensteinSquare':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'EhrensteinSquare.png')).convert('RGB')
+            cmap = 'gray'
+            
+        elif image_name == 'EhrensteinColor':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'EhrensteinColor.png')).convert('RGB')
+            cmap = 'gray'
         else:
+
             raise ValueError(f"Unsupported image name: {image_name}")
 
         # # Apply the transformation
