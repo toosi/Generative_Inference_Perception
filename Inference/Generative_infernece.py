@@ -61,40 +61,120 @@ class InferStep:
 
 from collections import OrderedDict
 import torch.nn as nn
+import copy
 
 def extract_middle_layers(model, layer_index):
     if isinstance(layer_index, str) and layer_index == 'all':
         return model
+    
+    # Special case for ViT's encoder layers with DataParallel wrapper
+    if isinstance(layer_index, str) and layer_index.startswith('encoder.layers.encoder_layer_'):
+        try:
+            target_layer_idx = int(layer_index.split('_')[-1])
+            
+            # Create a deep copy of the model to avoid modifying the original
+            new_model = copy.deepcopy(model)
+            
+            # For models wrapped in DataParallel
+            if hasattr(new_model, 'module'):
+                # Create a subset of encoder layers up to the specified index
+                encoder_layers = nn.Sequential()
+                for i in range(target_layer_idx + 1):
+                    layer_name = f"encoder_layer_{i}"
+                    if hasattr(new_model.module.encoder.layers, layer_name):
+                        encoder_layers.add_module(layer_name, 
+                                                 getattr(new_model.module.encoder.layers, layer_name))
+                
+                # Replace the encoder layers with our truncated version
+                new_model.module.encoder.layers = encoder_layers
+                
+                # Remove the heads since we're stopping at the encoder layer
+                new_model.module.heads = nn.Identity()
+                
+                return new_model
+            else:
+                # Direct model access (not DataParallel)
+                encoder_layers = nn.Sequential()
+                for i in range(target_layer_idx + 1):
+                    layer_name = f"encoder_layer_{i}"
+                    if hasattr(new_model.encoder.layers, layer_name):
+                        encoder_layers.add_module(layer_name, 
+                                                 getattr(new_model.encoder.layers, layer_name))
+                
+                # Replace the encoder layers with our truncated version
+                new_model.encoder.layers = encoder_layers
+                
+                # Remove the heads since we're stopping at the encoder layer
+                new_model.heads = nn.Identity()
+                
+                return new_model
+                
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid ViT layer specification: {layer_index}. Error: {e}")
+    
+    # Existing handling for ViT whole blocks
+    elif hasattr(model, 'blocks') or (hasattr(model, 'module') and hasattr(model.module, 'blocks')):
+        # Check for DataParallel wrapper
+        base_model = model.module if hasattr(model, 'module') else model
         
-    if hasattr(model, 'blocks'):  # Check if it's a ViT
-        # Create a new sequential model with the ViT components up to specified block
-        components = OrderedDict([
-            ('patch_embed', model.patch_embed),
-            ('pos_drop', model.pos_drop)
-        ])
+        # Create a deep copy to avoid modifying the original
+        new_model = copy.deepcopy(model)
+        base_new_model = new_model.module if hasattr(new_model, 'module') else new_model
         
         # Add the desired number of transformer blocks
         if isinstance(layer_index, int):
-            blocks = model.blocks[:layer_index+1]
-        else:
-            blocks = model.blocks
+            # Truncate the blocks
+            base_new_model.blocks = base_new_model.blocks[:layer_index+1]
             
-        components['blocks'] = nn.Sequential(*blocks)
-        
-        # Add norm layer
-        components['norm'] = model.norm
-        
-        return nn.Sequential(components)
+        return new_model
+    
     else:
-        # Original ResNet handling
+        # Original ResNet/VGG handling
         modules = list(model.named_children())
-        module_index = next((i for i, (name, _) in enumerate(modules) 
-                           if name == str(layer_index)), None)
-        if module_index is not None:
-            modules = modules[:module_index+1]
+        cutoff_idx = next((i for i, (name, _) in enumerate(modules) 
+                          if name == str(layer_index)), None)
+        
+        if cutoff_idx is not None:
+            # Keep modules up to and including the target
+            new_model = nn.Sequential(OrderedDict(modules[:cutoff_idx+1]))
+            return new_model
         else:
             raise ValueError(f"Module {layer_index} not found in model")
-        return nn.Sequential(OrderedDict(modules))
+    
+# def extract_middle_layers(model, layer_index):
+#     if isinstance(layer_index, str) and layer_index == 'all':
+#         return model
+        
+#     if hasattr(model, 'blocks'):  # Check if it's a ViT
+#         # Create a new sequential model with the ViT components up to specified block
+#         components = OrderedDict([
+#             ('patch_embed', model.patch_embed),
+#             ('pos_drop', model.pos_drop)
+#         ])
+        
+#         # Add the desired number of transformer blocks
+#         if isinstance(layer_index, int):
+#             blocks = model.blocks[:layer_index+1]
+#         else:
+#             blocks = model.blocks
+            
+#         components['blocks'] = nn.Sequential(*blocks)
+        
+#         # Add norm layer
+#         components['norm'] = model.norm
+        
+#         return nn.Sequential(components)
+    
+#     else:
+#         # Original ResNet handling
+#         modules = list(model.named_children())
+#         module_index = next((i for i, (name, _) in enumerate(modules) 
+#                            if name == str(layer_index)), None)
+#         if module_index is not None:
+#             modules = modules[:module_index+1]
+#         else:
+#             raise ValueError(f"Module {layer_index} not found in model")
+#         return nn.Sequential(OrderedDict(modules))
 
 
 from scipy.ndimage import gaussian_filter
@@ -171,6 +251,7 @@ def calculate_loss(output_model, class_indices, loss_inference):
 def generative_inference(model_config, image, inference_config):
     
     model = model_config['model']
+    input_size = model_config['input_size']
     dataset_model = model_config['dataset_model']
     norm_mean = model_config['norm_mean']
     norm_std = model_config['norm_std']
@@ -203,15 +284,15 @@ def generative_inference(model_config, image, inference_config):
   
     if inference_normalization == 'on':        
         transform = transforms.Compose([
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
+            transforms.Resize(input_size),
+            transforms.CenterCrop(input_size),
             transforms.ToTensor(),
             transforms.Normalize(norm_mean, norm_std),
         ])
     else:
         transform = transforms.Compose([
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
+            transforms.Resize(input_size),
+            transforms.CenterCrop(input_size),
             transforms.ToTensor(),
         ])
         
@@ -231,11 +312,15 @@ def generative_inference(model_config, image, inference_config):
     new_model = extract_middle_layers(model.module, top_layer)
     new_model.eval()
     
+    print(new_model)
+    
     output_original = model(image_tensor)
-    probs_orig = torch.nn.functional.softmax(output_original, dim=1).squeeze(-1).squeeze(-1)
-    conf_orig, classes_orig = torch.max(probs_orig, 1) 
-    conf_min, classes_min = torch.min(probs_orig, 1)
-    # Get the indices of the 10 least likely classes
+    try:
+        probs_orig = torch.nn.functional.softmax(output_original, dim=1).squeeze(-1).squeeze(-1)
+        conf_orig, classes_orig = torch.max(probs_orig, 1) 
+        conf_min, classes_min = torch.min(probs_orig, 1)
+    except:
+        pass
     if loss_infer == 'IncreaseConfidence':
         _, least_confident_classes = torch.topk(probs_orig, k=int(n_classes/10), largest=False)
     elif loss_infer == 'GradModulation':
@@ -299,12 +384,29 @@ def generative_inference(model_config, image, inference_config):
             num_samples = inference_config['misc_info'].get('smooth_samples', 100)
             batch_size_smooth = inference_config['misc_info'].get('smooth_batch_size', 1)
             smooth_sigma = inference_config['misc_info'].get('smooth_sigma', 0.25)
+            use_multiscale = inference_config['misc_info'].get('smooth_multiscale', False)
+            if use_multiscale:
+                scales = range(1, 128, 1)
+            else:
+                scales = [1]
             all_feats = []
             num_remaining = num_samples
             while num_remaining > 0:
                 current_batch = min(batch_size_smooth, num_remaining)
                 batch = image_tensor.repeat(current_batch, 1, 1, 1)
-                noise = torch.randn_like(batch) * smooth_sigma
+                if use_multiscale:
+                    multi_noise = 0
+                    # For each scale, generate noise, upscale it, and sum it.
+                    for scale in scales:
+                        H, W = batch.size(2), batch.size(3)
+                        # Calculate new dimensions; ensure minimum size 1x1.
+                        new_H, new_W = max(1, H // scale), max(1, W // scale)
+                        noise_small = torch.randn(current_batch, 3, new_H, new_W, device=batch.device) 
+                        noise_upsampled = F.interpolate(noise_small, size=(H, W), mode='bilinear', align_corners=False)
+                        multi_noise += noise_upsampled
+                        noise = multi_noise * smooth_sigma / len(scales)
+                else:
+                    noise = torch.randn_like(batch) * smooth_sigma
                 feat = new_model(batch + noise)
                 
                 all_feats.append(feat)
@@ -318,8 +420,14 @@ def generative_inference(model_config, image, inference_config):
         if itr == 0:
             # dont add priors or diffusion noise to the first iteration
             output = model(image_tensor)
-            probs = torch.nn.functional.softmax(output, dim=1).squeeze(-1).squeeze(-1)
-            conf, classes = torch.max(probs, 1)
+            if isinstance(output, torch.Tensor) and output.size(-1) == n_classes:  # where n_classes is 1000 for ImageNet
+                probs = torch.nn.functional.softmax(output, dim=1).squeeze(-1).squeeze(-1)
+                conf, classes = torch.max(probs, 1)
+            else:
+                # to handle modles like SAM
+                probs = 0
+                conf = 0
+                classes = 'N/A'
 
         else:
             
@@ -400,6 +508,8 @@ def generative_inference(model_config, image, inference_config):
 
         if inference_normalization=='on' and itr == 0:
             denormalized_image_tensor = image_tensor.squeeze(0) * norm_std.view(1, -1, 1, 1) + norm_mean.view(1, -1, 1, 1)
+        elif inference_normalization=='off' and itr == 0:
+            denormalized_image_tensor = image_tensor
         else:
             denormalized_image_tensor = image_tensor
         
@@ -413,10 +523,17 @@ def generative_inference(model_config, image, inference_config):
                 selected_grad_patterns.append(torch.zeros_like(image_tensor))
             selected_inferred_patterns.append(denormalized_image_tensor.clone().detach())
             output = model(image_tensor)
-            probs = torch.nn.functional.softmax(output, dim=1).squeeze(-1).squeeze(-1)
-            conf, classes = torch.max(probs, 1)
-            perceived_categories.append(classes.item())
-            confidence_list.append(conf.item())
+            if isinstance(output, torch.Tensor) and output.size(-1) == n_classes:  # where n_classes is 1000 for ImageNet
+                probs = torch.nn.functional.softmax(output, dim=1).squeeze(-1).squeeze(-1)
+                conf, classes = torch.max(probs, 1)
+                classes = classes.item()
+                conf = conf.item()
+            else:
+                probs = 0
+                conf = 0
+                classes = 'N/A'
+            perceived_categories.append(classes)
+            confidence_list.append(conf)
             
     if inference_config['misc_info']['keep_grads']:
         misc_info_dict['grad_info'] = selected_grad_patterns

@@ -72,6 +72,11 @@ dict_hash_resent50_vggface2 = {
                       'advrobust_L2_eps_1.00': '0bad943b-4373-4bba-998a-95493dd2bf51',
                       'advrobust_L2_eps_3.00': 'c91917b7-660b-4c04-97f4-993be74e6eb8',}
 
+dict_hash_resent18_vggface2 = {
+                      'advrobust_L2_eps_0.25': 'cb7a3396-edd6-4671-ab0c-552a743528c4',
+                      'advrobust_L2_eps_0.50': '1f4ea785-2466-4748-8d2a-c5cb699ac7c6',
+                      'advrobust_L2_eps_1.00': 'c3bdc9f6-ece2-405f-a786-47d615a5978b',}
+
 dict_hash_vgg16_vggface2 = {
 
                       'advrobust_L2_eps_3.00': '1e9fce5f-b1c9-4f19-b559-022bce001864',} #190 checkpoints even numbers 
@@ -124,6 +129,8 @@ def get_dict_hash(dataset, model_arch):
         return dict_hash_MNIST
     elif dataset == 'vggface2' and model_arch == 'resnet50':
         return dict_hash_resent50_vggface2
+    elif dataset == 'vggface2' and model_arch == 'resnet18':
+        return dict_hash_resent18_vggface2
     elif dataset == 'vggface2' and model_arch == 'vgg16':
         return dict_hash_vgg16_vggface2
     else:

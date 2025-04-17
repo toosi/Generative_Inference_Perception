@@ -100,6 +100,7 @@ import torch
 from typing import Dict, Union
 from collections import OrderedDict
 
+# these models are robustly trained on imagenet
 other_CNN_models = ['resnet18', 'densenet','mnasnet', 'mobilenet-v3', 'wide-resnet50-2', 'vgg16-bn','shufflenet','resnext50-32x4d']
 
 
@@ -115,8 +116,14 @@ def load_models(args):
     # if args.dataset != 'imagenet':
     #     print("add imagenet models to the hash_checkpoints.py")
     # if args.model_arch == 'resnet50':
-    if args.model_arch not in other_CNN_models:
-        dict_hash = hash_checkpoints.get_dict_hash(args.dataset, args.model_arch)
+    if args.model_training != 'standard':
+        if args.dataset != 'imagenet':
+            dict_hash = hash_checkpoints.get_dict_hash(args.dataset, args.model_arch)
+        else:
+            if args.model_arch not in other_CNN_models: 
+                dict_hash = hash_checkpoints.get_dict_hash(args.dataset, args.model_arch)
+            else:
+                dict_hash = {}
     else:
         dict_hash = {}
     
@@ -158,8 +165,10 @@ def load_models(args):
     
 
     if (args.model_training == 'standard') and (args.dataset == 'imagenet'):
-        model, _ = model_utils.make_and_restore_model(arch=args.model_arch, dataset=ds,
+        model_arch = torchvision_models.get_model(args.model_arch, pretrained=True)
+        model, _ = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
                                             pytorch_pretrained=True,)
+        load_path = 'torchvision_models'
 
     ## load from checkpoints
 
@@ -275,7 +284,7 @@ def load_models(args):
                 load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/checkpoint.pt.best'
             else:
                 assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
-
+                print(dict_hash.keys())
                 load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
 
             if args.model_arch == 'vgg16':
