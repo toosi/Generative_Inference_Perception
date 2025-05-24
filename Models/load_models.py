@@ -285,6 +285,7 @@ def load_models(args):
             else:
                 assert (int(args.epoch_chkpnt) < 199) and int(args.epoch_chkpnt)%2==0, "The epoch number should be less than 199 and even"
                 print(dict_hash.keys())
+                print('load_path:', load_path)
                 load_path = path_checkpoints+ f'/train_{args.model_arch}_{args.dataset}_eps_{args.eps:.2f}/{dict_hash[args.model_training]}/{args.epoch_chkpnt}_checkpoint.pt'
 
             if args.model_arch == 'vgg16':

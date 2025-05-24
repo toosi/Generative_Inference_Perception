@@ -338,11 +338,11 @@ class ImageLoader:
         elif image_name == 'ShadowEffectBW':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'ShadowEffectBW.png')).convert('RGB')
             cmap = 'gray'
-        elif image_name == 'ColorballsStrips':
-            image_original = Image.open(os.path.join(self.Imagedir_path, 'colorballs_stripes.png')).convert('RGB')
+        elif image_name == 'ConfettiIllusion':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'Confetti_illusion.png')).convert('RGB')
             cmap = 'Spectral'
-        elif image_name == 'BlockColorIllusion':
-            image_original = Image.open(os.path.join(self.Imagedir_path, 'BlockColorIllusion.jpg')).convert('RGB')
+        elif image_name == 'CornsweetBlock':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'CornsweetBlock.png')).convert('RGB')
             cmap = 'Spectral'
             
         elif image_name == 'EhrensteinSquare':
@@ -351,7 +351,14 @@ class ImageLoader:
             
         elif image_name == 'EhrensteinColor':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'EhrensteinColor.png')).convert('RGB')
-            cmap = 'gray'
+            cmap = 'Spectral'
+            
+        elif image_name == 'EhresteinSingleColor':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'EhresteinSingleColor.png')).convert('RGB')
+            cmap = 'Spectral'
+        elif image_name == 'NoisyCat':
+            image_original = Image.open(os.path.join(self.Imagedir_path, 'NoisyCat.png')).convert('RGB')
+            cmap = 'Spectral'
         else:
 
             raise ValueError(f"Unsupported image name: {image_name}")
