@@ -373,6 +373,7 @@ def generative_inference(model_config, image, inference_config):
     misc_info_dict = {}
     selected_grad_patterns = []
     angles = []
+    probs_list = []
     
     for itr in range(n_itr):
         new_model.zero_grad()
@@ -534,12 +535,14 @@ def generative_inference(model_config, image, inference_config):
                 classes = 'N/A'
             perceived_categories.append(classes)
             confidence_list.append(conf)
+            probs_list.append(probs)
             
     if inference_config['misc_info']['keep_grads']:
         misc_info_dict['grad_info'] = selected_grad_patterns
         
     if 'positive_classes' in inference_config['misc_info'].keys() or 'negative_classes' in inference_config['misc_info'].keys():
         misc_info_dict['angles_between_gradients'] = angles
+    misc_info_dict['probs_list'] = probs_list
 
     return selected_inferred_patterns, perceived_categories, confidence_list, misc_info_dict
 
