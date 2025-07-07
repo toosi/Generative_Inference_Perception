@@ -165,10 +165,18 @@ def load_models(args):
     
 
     if (args.model_training == 'standard') and (args.dataset == 'imagenet'):
-        model_arch = torchvision_models.get_model(args.model_arch, pretrained=True)
-        model, _ = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
+        if args.epoch_chkpnt == 'full':
+            model_arch = torchvision_models.get_model(args.model_arch, pretrained=True)
+            model, _ = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
                                             pytorch_pretrained=True,)
-        load_path = 'torchvision_models'
+        elif args.epoch_chkpnt == '0':
+            model_arch = torchvision_models.get_model(args.model_arch, pretrained=False)
+            model, _ = model_utils.make_and_restore_model(arch=model_arch, dataset=ds,
+                                            pytorch_pretrained=False,)
+        else:
+            raise ValueError("The epoch number is not supported for standard models")
+        
+        load_path = 'torchvision_models' #'torchvision_models'
 
     ## load from checkpoints
 
