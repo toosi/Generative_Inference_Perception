@@ -1,0 +1,31 @@
+{
+  "image_name": "CornsweetBlock",
+  "settings": [
+    {
+      "model_config": {
+        "model_arch": "resnet50",
+        "dataset_model": "imagenet",
+        "model_training": "advrobust_L2_eps_3.00",
+        "epoch_chkpnt": "full",
+        "input_size": 224,
+        "norm_mean": [0.485, 0.456, 0.406],
+        "norm_std": [0.229, 0.224, 0.225],
+        "n_classes": 1000
+      },
+      "inference_config": {
+        "loss_infer": "PGDD",
+        "loss_function": "MSE",
+        "n_itr": 51,
+        "eps": 20,
+        "step_size": 0.8,
+        "diffusion_noise_ratio": 0.005,
+        "initial_inference_noise_ratio": 0.5,
+        "iterations_to_show": [0, 1, 2, 4, 8, 16, 24, 36, 48, 56, 60, 64, 80, 90, 100],
+        "top_layer": "layer3",
+        "inference_normalization": "off",
+        "recognition_normalization": "off",
+        "misc_info": {"keep_grads": true}
+      }
+    }
+  ]
+}

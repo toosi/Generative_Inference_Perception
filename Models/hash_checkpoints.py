@@ -87,6 +87,9 @@ dict_hash_resent50_imagenet = { 'advrobust_L2_eps_3.00': 'c27e4781-e806-451d-af4
                        'advrobust_L2_eps_5.00': '7d8147c9-77fc-4949-bafd-626e9312225e',
                        'advrobust_L2_eps_1.00': '547a4203-f7c8-4d70-ad7c-e12966038dcd',
                        'advrobust_L2_eps_2.00': '5afe82f4-97f8-470e-9d1f-0493c1bbc38a',
+                        'advrobust_L2_eps_4.00': '65e622cd-9fa5-4d82-8bd3-20a8277156d6',
+
+                       'advrobust_L2_eps_8.00': '234ae998-bf89-4465-8365-169b27085b08',
 }
 
 dict_hash_resent50_imagenetvggface2 = {'advrobust_L2_eps_3.00':'540a1066-2902-4ed4-9562-53d4fde58440'}

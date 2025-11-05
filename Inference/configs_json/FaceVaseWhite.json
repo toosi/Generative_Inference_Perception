@@ -1,0 +1,31 @@
+{
+  "image_name": "FaceVaseWhite",
+  "settings": [
+    {
+      "model_config": {
+        "model_arch": "resnet18",
+        "dataset_model": "vggface2",
+        "model_training": "advrobust_L2_eps_0.50",
+        "epoch_chkpnt": "150",
+        "input_size": 224,
+        "norm_mean": [0.5, 0.5, 0.5],
+        "norm_std": [0.5, 0.5, 0.5],
+        "n_classes": 500
+      },
+      "inference_config": {
+        "loss_infer": "PGDD",
+        "loss_function": "MSE",
+        "n_itr": 201,
+        "eps": 40,
+        "step_size": 0.2,
+        "diffusion_noise_ratio": 0.01,
+        "initial_inference_noise_ratio": 0.5,
+        "iterations_to_show": [0, 1, 2, 4, 8, 16, 20, 24, 32, 40, 48, 56, 72, 80, 192, 200],
+        "top_layer": "layer4",
+        "inference_normalization": "off",
+        "recognition_normalization": "off",
+        "misc_info": {"keep_grads": true}
+      }
+    }
+  ]
+}

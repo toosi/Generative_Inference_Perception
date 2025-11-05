@@ -139,6 +139,7 @@ def extract_middle_layers(model, layer_index):
             new_model = nn.Sequential(OrderedDict(modules[:cutoff_idx+1]))
             return new_model
         else:
+            print(modules)
             raise ValueError(f"Module {layer_index} not found in model")
     
 # def extract_middle_layers(model, layer_index):
@@ -341,7 +342,7 @@ def generative_inference(model_config, image, inference_config):
         
     
     # noisy image for Reverse Diffusion
-    if loss_infer == 'ReverseDiffusion':
+    if loss_infer == 'PGDD':
         added_noise = initial_inference_noise_ratio * torch.randn_like(image_tensor).cuda()
         # if loss_infer == 'GradModulation':
         #     grad_modulation = inference_config['misc_info']['grad_modulation']
@@ -432,7 +433,7 @@ def generative_inference(model_config, image, inference_config):
 
         else:
             
-            if loss_infer == 'ReverseDiffusion':
+            if loss_infer == 'PGDD':
                 assert loss_function == 'MSE', "Reverse Diffusion loss function must be MSE"
                 loss = torch.nn.functional.mse_loss(features, noisy_features)
                 grad = torch.autograd.grad(loss, image_tensor)[0]

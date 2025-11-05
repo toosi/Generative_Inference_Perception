@@ -15,6 +15,15 @@ __pycache__/
 *.ckpt
 *.pyc
 *.pyo
+# Model checkpoints
+*checkpoints*/
+models_checkpoints/
+checkpoint-*/
+*checkpoint*.pt
+*checkpoint*.pth
+*checkpoint*.ckpt
+*checkpoint*.h5
+*.checkpoint
 
 # Compiled source #
 ###################

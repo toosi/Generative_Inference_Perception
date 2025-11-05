@@ -253,7 +253,7 @@ class ImageLoader:
             
         elif image_name == 'NeonCircles':
             image_original = Image.open(os.path.join(self.Imagedir_path, "Neon_Color_Circle.jpg")).convert('RGB')
-            cmap = 'gray'
+            cmap = 'Spectral'
         elif image_name == 'NeonColorSaeedi':
             image_original = Image.open(os.path.join(self.Imagedir_path, "NeonColorSaeedi.jpg")).convert('RGB')
             cmap = 'gray'
@@ -281,11 +281,11 @@ class ImageLoader:
             
         elif image_name == 'RandomizedPhaseoval':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'RandomizedPhaseOval.png')).convert('RGB')
-            cmap = 'gray'
+            cmap = 'Spectral'
         
         elif image_name == 'RandomizedPhaseovalGray':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'RandomizedPhaseOvalGray.png')).convert('RGB')
-            cmap = 'gray'
+            cmap = 'Spectral'
             
         elif image_name == 'ConnectedDots':
             image_original = Image.open(os.path.join(self.Imagedir_path, 'ConnectedDots.png')).convert('RGB')

@@ -1,0 +1,32 @@
+{
+  "image_name": "KanizsaSq",
+  "settings": [
+   
+    {
+      "model_config": {
+        "model_arch": "resnet50",
+        "dataset_model": "imagenet",
+        "model_training": "advrobust_L2_eps_3.00",
+        "epoch_chkpnt": "full",
+        "input_size": 224,
+        "norm_mean": [0.485, 0.456, 0.406],
+        "norm_std": [0.229, 0.224, 0.225],
+        "n_classes": 1000
+      },
+      "inference_config": {
+        "loss_infer": "IncreaseConfidence",
+        "loss_function": "CE",
+        "n_itr": 501,
+        "eps": 5,
+        "step_size": 0.5,
+        "diffusion_noise_ratio": 0.003,
+        "initial_inference_noise_ratio": 0.01,
+        "iterations_to_show": [0, 1, 2, 10, 20, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500],
+        "top_layer": "all",
+        "inference_normalization": "off",
+        "recognition_normalization": "off",
+        "misc_info": {"keep_grads": true}
+      }
+    }
+  ]
+}
