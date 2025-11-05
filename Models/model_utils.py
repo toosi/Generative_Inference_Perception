@@ -1,41 +1,79 @@
+"""Model utility functions."""
+
+from collections import OrderedDict
+from typing import Union
+
 import torch
 import torch.nn as nn
 from torchvision import models as torchmodels
-from collections import OrderedDict
 
-def extract_middle_layers(model, module_name):
+
+def extract_middle_layers(model: nn.Module, module_name: Union[str, int]) -> nn.Module:
+    """Extract middle layers from a model up to a specified module.
+    
+    Args:
+        model: PyTorch model to extract layers from.
+        module_name: Module name or 'all' for full model.
+        
+    Returns:
+        Truncated model up to the specified module.
+        
+    Raises:
+        ValueError: If module_name is not found in the model.
+    """
     if module_name == 'all':
-        print('returning complete model')
         return model
     else:
         list_modules = [name for name, _ in list(model.named_children())]
         modules = list(model.named_children())
-        module_index = next((i for i, (name, _) in enumerate(modules) if name == module_name), None)
+        module_index = next(
+            (i for i, (name, _) in enumerate(modules) if name == module_name),
+            None
+        )
         if module_index is not None:
-            modules = modules[:module_index+1]
+            modules = modules[:module_index + 1]
         else:
-            raise ValueError(f"Module {module_name} not found in model, select from {list_modules}")
-        return torch.nn.Sequential(OrderedDict(modules))
+            raise ValueError(
+                f"Module {module_name} not found in model, "
+                f"select from {list_modules}"
+            )
+        return nn.Sequential(OrderedDict(modules))
     
     
 
 class ResNetPart1(nn.Module):
-    def __init__(self, original_model):
+    """First part of ResNet (conv1 layer)."""
+    
+    def __init__(self, original_model: nn.Module):
+        """Initialize ResNet part 1.
+        
+        Args:
+            original_model: Original ResNet model.
+        """
         super(ResNetPart1, self).__init__()
         self.conv1 = original_model.conv1
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through conv1.
         
-
-    def forward(self, x):
-        x = self.conv1(x)
-
-
-
-        return x
+        Args:
+            x: Input tensor.
+            
+        Returns:
+            Output tensor.
+        """
+        return self.conv1(x)
     
 class ResNetPart2(nn.Module):
-    def __init__(self, original_model):
-        super(ResNetPart2, self).__init__()
+    """Second part of ResNet (remaining layers)."""
+    
+    def __init__(self, original_model: nn.Module):
+        """Initialize ResNet part 2.
         
+        Args:
+            original_model: Original ResNet model.
+        """
+        super(ResNetPart2, self).__init__()
         self.bn1 = original_model.bn1
         self.relu = original_model.relu
         self.maxpool = original_model.maxpool
@@ -46,7 +84,15 @@ class ResNetPart2(nn.Module):
         self.avgpool = original_model.avgpool
         self.fc = original_model.fc
     
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through remaining layers.
+        
+        Args:
+            x: Input tensor.
+            
+        Returns:
+            Output tensor.
+        """
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)

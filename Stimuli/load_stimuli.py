@@ -1,104 +1,108 @@
+"""Load stimuli images for experiments."""
 
-import numpy as np
 import os
 import socket
+from typing import Tuple
+
+import numpy as np
+import requests
+from PIL import Image
+from torchvision import transforms
+
 hostname = socket.gethostname()
-if hostname.startswith('ax'): 
+if hostname.startswith('ax'):
     print(f'The kernel is running on an Axon server {hostname}')
     path_prefix = '/mnt/smb/locker/miller-locker/users/Tahereh'
     path_prefix_data = '/home/tt2684/Research/Data'
     path_prefix_codes = '/mnt/smb/locker/miller-locker/users/Tahereh/Codes'
-
 elif hostname == 'demo':
     print("Kernel running on local computer 'demo'.")
     path_prefix = '/home/tahereh/engram/users/Tahereh'
     path_prefix_data = '/home/tahereh/engram/users/Tahereh/Research/Data'
     path_prefix_codes = '/home/tahereh/engram/users/Tahereh/Codes'
 
-
-
-Imagedir_path = os.path.join(path_prefix_codes, 'Public_Codes/Generative_Inference/Stimuli')
-
-
-import requests
+Imagedir_path = os.path.join(
+    path_prefix_codes, 'Public_Codes/Generative_Inference/Stimuli'
+)
 
 # URL for the ImageNet labels
-url = "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+IMAGENET_LABELS_URL = (
+    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/"
+    "master/imagenet-simple-labels.json"
+)
 
 # Fetch the label file
-response = requests.get(url)
+response = requests.get(IMAGENET_LABELS_URL)
 if response.status_code == 200:
     labels_imagenet = response.json()
 else:
     raise RuntimeError("Failed to fetch labels")
 
-# Print first 5 labels as a sample
-print(labels_imagenet[:5])
-labels_imagenetvggface2 = labels_imagenet+['face']
-
-from torchvision import transforms
-from PIL import Image
-import timm
-import os
-import sys
+labels_imagenetvggface2 = labels_imagenet + ['face']
 
 
 
 
-import torch
-import copy
-import torch.nn as nn
-from robustness import model_utils, datasets, train, defaults
-from robustness.datasets import CIFAR, ImageNet
-
-
-
-# We use cox (http://github.com/MadryLab/cox) to log, store and analyze
-# results. Read more at https//cox.readthedocs.io.
-from cox.utils import Parameters
-import cox.store
-
-import matplotlib.pylab as plt
 from PIL import ImageOps
 
 
-import os
-from PIL import Image
-import torch
-from torchvision import transforms
-
 class ImageLoader:
-    def __init__(self, model_dataset):
+    """Loader for experiment stimuli images."""
+    
+    def __init__(self, model_dataset: str):
+        """Initialize image loader.
         
+        Args:
+            model_dataset: Dataset name ('cifar', 'imagenet', 'vggface2', etc.).
+            
+        Raises:
+            ValueError: If dataset is not supported.
+        """
         self.Imagedir_path = Imagedir_path
-        
         self.model_dataset = model_dataset
-        
 
         # Define CIFAR and ImageNet transformations
         if model_dataset == 'cifar':
             self.transform = transforms.Compose([
                 transforms.Resize(32),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010]),  # CIFAR-10 normalization
+                transforms.Normalize(
+                    mean=[0.4914, 0.4822, 0.4465],
+                    std=[0.2023, 0.1994, 0.2010]
+                ),  # CIFAR-10 normalization
             ])
         elif model_dataset in ['imagenet', 'imagenetvggface2', 'Places365']:
             self.transform = transforms.Compose([
                 transforms.Resize(224),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # ImageNet normalization
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]
+                ),  # ImageNet normalization
             ])
-            
         elif model_dataset == 'vggface2':
             self.transform = transforms.Compose([
                 transforms.Resize(224),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),  # ImageNet normalization
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
             ])
         else:
-            raise ValueError("Unsupported dataset. Please choose either 'cifar' or 'imagenet' like.")
+            raise ValueError(
+                "Unsupported dataset. Please choose either 'cifar' or 'imagenet' like."
+            )
 
-    def load_image(self, image_name):
+    def load_image(self, image_name: str) -> Tuple[Image.Image, str]:
+        """Load image by name.
+        
+        Args:
+            image_name: Name of the image to load.
+            
+        Returns:
+            Tuple of (PIL Image, colormap name).
+            
+        Raises:
+            ValueError: If image name is not supported.
+        """
         if image_name == 'KanizsaSq':   
             image_original = Image.open(os.path.join(self.Imagedir_path, "Kanizsa_square.jpg")).convert('RGB')
             cmap = 'gray'
@@ -363,11 +367,4 @@ class ImageLoader:
 
             raise ValueError(f"Unsupported image name: {image_name}")
 
-        # # Apply the transformation
-        # if self.apply_transform:
-        #     image_transformed = self.transform(image_original)
-        # else:
-        #     image_transformed = image_original
         return image_original, cmap
-
-print("image names: ", ImageLoader.load_image.__code__.co_varnames)

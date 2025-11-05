@@ -1,4 +1,4 @@
-name: robustbenchpy311
+name: geninference
 channels:
   - conda-forge
   - defaults
@@ -277,4 +277,4 @@ dependencies:
       - xmltodict==0.13.0
       - xxhash==3.5.0
       - yarl==1.20.1
-prefix: /home/tahereh/anaconda3/envs/robustbenchpy311
+prefix: /home/tahereh/anaconda3/envs/geninference
